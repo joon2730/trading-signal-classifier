@@ -1,14 +1,17 @@
 class Config:
     # Data parameters
-    feature_columns =
+    features =
+    lookback = 48
+
     
     # Model parameters
-    input_size =
-    hidden_size =
-    num_layers =
-    dropout_rate =
+    seq_len = lookback
+    input_size = len(features)
+    hidden_size = 128
+    num_layers = 2
+    dropout_rate = 0.2
 
-       # Training parameters
+    # Training parameters
     do_train = True
     do_predict = True
     add_train = False           # Load existing model for incremental training
