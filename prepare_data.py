@@ -5,7 +5,7 @@ import numpy as np
 
 from dataloader import reader
 from utils.signal_labeller import label_signal
-from utils.signal_generator import MACD
+from utils.signal_generator import generate_signals
 
 class Config:
     # Data parameters
@@ -19,18 +19,27 @@ class Config:
         end_date = "2023-10-01"
         interval = "1d"
 
-    target = 'Close'
+    # Signal parameters
+    signal_method = 'RSI'  # MACD, RSI, ...
 
-    # MACD parameters
-    short_window = 12
-    long_window = 26
-    signal_window = 4
+    signal_params = {
+        'MACD': {
+            'short_window': 12,
+            'long_window': 26,
+            'signal_window': 3
+        },
+        'RSI': {
+            'window': 14,
+            'low_threshold': 30,
+            'high_threshold': 70
+        }
+    }
 
     # Label parameters
     trading_window = 48
     target_profit = 0.05
-    buy_min_exp = 0.8
-    sell_max_exp = -0.8
+    buy_min_exp = 1
+    sell_max_exp = -1
 
     if use_local_data:
         save_path = "data/labelled/" + data_path.split('.')[0].split('/')[-1] + '.csv'
@@ -40,13 +49,15 @@ class Config:
 def main(config):
     # read data
     if config.use_local_data:
-        data = reader.read_local_data(config.data_path, features=[config.target])
+        data = reader.read_local_data(config.data_path, features=['Close'])
     else:
         data = reader.fetch_ohlcv_online()
-        data = data[[config.target]]
+        data = data[['Close']]
 
     # generate signals
-    signals = MACD(data[config.target], signal_window=3)
+    signals = generate_signals(data['Close'], 
+                            config.signal_method, 
+                            config.signal_params[config.signal_method])
 
     # get indices of rows with signals
     signal_indices = signals.index[signals['signal'] != 0].tolist()
@@ -75,12 +86,33 @@ def main(config):
     sell_indices = labels.index[labels['label'] == -1].tolist()
     
     fig = plt.figure(figsize = (15,5))
-    plt.plot(data[config.target], color='r', lw=2.)
-    plt.plot(data[config.target], '^', markersize=10, color='m', label = 'buying signal', markevery = buy_indices)
-    plt.plot(data[config.target], 'v', markersize=10, color='k', label = 'selling signal', markevery = sell_indices)
+    plt.plot(data['Close'], color='r', lw=2.)
+    plt.plot(data['Close'], '^', markersize=10, color='m', label = 'buying signal', markevery = buy_indices)
+    plt.plot(data['Close'], 'v', markersize=10, color='k', label = 'selling signal', markevery = sell_indices)
     plt.title('MACD Signal')
     plt.legend()
     plt.show()
+
+
+    # signal distribution
+    signal_counts_norm = labels['label'].value_counts(normalize=True)
+    signal_counts = labels['label'].value_counts(normalize=False)
+
+    # print
+    print(f"Signal distribution:\n{signal_counts_norm}")
+    print(f"Signal counts:\n{signal_counts}")
+    print(f"Number of signals: {len(labels)}")
+
+    # plot
+    plt.figure(figsize=(8, 5))
+    sns.barplot(x=signal_counts_norm.index, y=signal_counts_norm.values)
+    plt.title(f'Distribution of Signals, (total: {len(labels)})')
+    plt.xlabel('Signal Type')
+    plt.ylabel('Count')
+    plt.show()
+
+    
+
 
     
 if __name__ == "__main__":
