@@ -71,13 +71,13 @@ def label_signal(
     # Classify signal based on performance
     if signal_type == 1:  # Buy signal
         if performance >= buy_min_exp:
-            return 1
+            return 0 # for label 'BUY'
         else:
-            return 0
+            return 2 # for label 'HOLD
     elif signal_type == -1:  # Sell signal
         if performance <= sell_max_exp:
-            return -1
+            return 1 # for label 'SELL'
         else:
-            return 0
+            return 2 # for label 'HOLD'
     else:
         raise ValueError(f"Unknown signal type at index {index}: {signal_type}")

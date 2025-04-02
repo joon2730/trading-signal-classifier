@@ -38,5 +38,15 @@ def read_local_data(data_path, features=['Close', 'Open', 'High', 'Low', 'Volume
     
     return data[features]
 
+def read_labels(label_path):
+    try:
+        labels = pd.read_csv(label_path)
+        labels.set_index('index', inplace=True)
+        
+    except Exception as e:
+        raise RuntimeError(f"Failed to read labels from {label_path}: {e}")
+    
+    return labels
+
 
     

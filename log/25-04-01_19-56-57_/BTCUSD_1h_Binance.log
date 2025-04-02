@@ -1,0 +1,48 @@
+2025-04-01 19:56:57,514 - INFO - 
+Config:
+'add_train': False
+'batch_size': 64
+'cur_time': '25-04-01_19-56-57'
+'do_figure_save': True
+'do_log_print_to_screen': True
+'do_log_save_to_file': True
+'do_predict': True
+'do_train': True
+'do_train_visualized': False
+'dropout_rate': 0.2
+'epoch': 20
+'feature_path': 'data/features/BTCUSD_1h_Binance.csv'
+'features': ['Close'
+'Open'
+'High'
+'Low'
+'Volume']
+'figure_save_path': './figure/'
+'hidden_size': 128
+'input_size': 5
+'label_path': 'data/labels/BTCUSD_1h_Binance.csv'
+'labels': [-1, 0, 1]
+'learning_rate': 0.001
+'log_save_filename': 'BTCUSD_1h_Binance.log'
+'log_save_path': './log/25-04-01_19-56-57_/'
+'lookback': 48
+'lstm_layers': 2
+'model_name': 'model.pth'
+'model_save_path': './checkpoint/'
+'output_size': 3
+'patience': 5
+'random_seed': 42
+'seq_len': 48
+'shuffle_train_data': True
+'train_data_path': 'data/raw/BTCUSD_1h_Binance.csv'
+'train_data_rate': 0.85
+'use_cuda': False
+'valid_data_rate': 0.15
+2025-04-01 19:56:58,327 - INFO - Epoch 0/20
+2025-04-01 19:56:58,398 - ERROR - Run Error
+Traceback (most recent call last):
+  File "/Users/yejoonjung/Documents/Projects/trading-signal-classifier/train_and_test.py", line 73, in main
+    train(config, logger, [train_X, train_Y, valid_X, valid_Y])
+  File "/Users/yejoonjung/Documents/Projects/trading-signal-classifier/model/lstm.py", line 75, in train
+    pred_Y, _ = model(_train_X, None)    # Forward pass
+ValueError: too many values to unpack (expected 2)

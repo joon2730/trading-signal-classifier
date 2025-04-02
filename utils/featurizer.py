@@ -1,23 +1,22 @@
-def append_additional_features(ohclv, to_append={
-    'log_return': [1], # 1 for daily log return
-    'sma': [20, 50], # 20 and 50 days simple moving average
-    'rsi': [14], # 14 days relative strength index
-}):
-    if 'log_return' in to_append:
-        for period in to_append['log_return']:
-            ohclv[f'log_return_{period}'] = ohclv['Close'].pct_change(periods=period).apply(lambda x: np.log(1+x))
-    
-    if 'sma' in to_append:
-        for period in to_append['sma']:
-            ohclv[f'sma_{period}'] = ohclv['Close'].rolling(window=period).mean()
+import pandas as pd
+import numpy as np
 
-    if 'rsi' in to_append:
-        for period in to_append['rsi']:
-            delta = ohclv['Close'].diff()
+def add_technical_features(data, **kargs):
+    if 'LOG_RET' in kargs:
+        for period in kargs['LOG_RET']:
+            data[f'LOG_RET_{period}'] = data['Close'].pct_change(periods=period).apply(lambda x: np.log(1+x))
+    
+    if 'SMA' in kargs:
+        for period in kargs['SMA']:
+            data[f'SMA_{period}'] = data['Close'].rolling(window=period).mean()
+
+    if 'RSI' in kargs:
+        for period in kargs['RSI']:
+            delta = data['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
             rs = gain / loss
-            ohclv[f'rsi_{period}'] = 100 - (100 / (1 + rs))
+            data[f'RSI_{period}'] = 100 - (100 / (1 + rs))
 
-    ohclv.dropna(inplace=True)
-    return ohclv
+    data.dropna(inplace=True)
+    return data
