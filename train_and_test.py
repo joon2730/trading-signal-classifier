@@ -11,21 +11,16 @@ from utils import reporter
 
 class Config:
     # Data parameters
-    feature_path = "data/features/" + "BTCUSD_1h_Binance.csv"
-    label_path = "data/labels/" + "BTCUSD_1h_Binance.csv"
+    # data_name = "BTCUSD_1h_Binance"
+    data_name = "TSLA_1h_Yfinance"
+
+    # features = ['Close', 'Open', 'High', 'Low', 'Volume']
+    features = ['Close', 'Open', 'High', 'Low', 'Volume', 'SMA_10', 'SMA_20', 'SMA_50', 'RSI_14', 'LOG_RET_1']
+    classes = [0, 1, 2]
+    class_map = {0: 'Buy', 1: 'Sell', 2: 'Hold'}
 
     lookback = 48
     sample_method = 'over'  # 'over', 'under', 'none'
-
-    # features = ['Close', 'Open', 'High', 'Low', 'Volume']
-    features = ['Close', 'Open', 'High', 'Low', 'Volume', 'SMA_10', 'SMA_20', 'SMA_50', 'LOG_RET_1']
-    classes = [0, 1, 2]
-
-    class_map = {
-        0: 'Buy',
-        1: 'Sell',
-        2: 'Hold'
-    }
 
     # Model parameters
     hidden_size = 256
@@ -52,6 +47,8 @@ class Config:
     random_seed = 42
 
     # Paths
+    feature_path = "data/features/" + data_name + ".csv"
+    label_path = "data/labels/" + data_name + ".csv"
     model_save_path = "./checkpoint/"
     model_name = "model.pth"
     figure_save_path = "./figure/"
@@ -65,7 +62,7 @@ class Config:
     os.makedirs(figure_save_path, exist_ok=True)
     if do_train and (do_log_save_to_file or do_train_visualized):
         cur_time = time.strftime("%y-%m-%d_%H-%M-%S", time.localtime())
-        log_save_filename = feature_path.split(".")[0].split("/")[-1] + ".log"
+        log_save_filename = data_name + ".log"
         log_save_path = log_save_path + cur_time + '_' + "/"
         os.makedirs(log_save_path)
 
