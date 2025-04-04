@@ -8,7 +8,7 @@ class FeatureEncoding(nn.Module):
         super().__init__()
 
         # Load the feature matrix from a file
-        feature_matrix = read_local_data(feature_path, features=features).values
+        feature_matrix = read_local_data(feature_path, features).values
 
         # Register a fixed (non-learnable) matrix of features
         self.register_buffer('features', torch.tensor(feature_matrix).float())
@@ -21,6 +21,10 @@ class FeatureEncoding(nn.Module):
         # Step 1: Embed the indices
         x = self.features[index_tensor]  # shape: (batch_size, seq_len, feature_dim)
 
+        # skip normalization if seq_len == 1
+        if x.shape[1] == 1:
+            return x
+        
         # Step 2: Compute per-sequence mean and std for normalization
         mean = x.mean(dim=1, keepdim=True)  # shape: (batch_size, 1, feature_dim)
         std = x.std(dim=1, keepdim=True) + 1e-8  # prevent division by zero

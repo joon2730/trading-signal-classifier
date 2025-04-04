@@ -1,7 +1,28 @@
 import numpy as np
 import pandas as pd
 import logging
-    
+import ta
+
+def label_rsi_signal(data, window=14, high_threshold=70, low_threshold=30):
+
+    data = data.to_frame(name='Close')
+
+    # Calculate RSI
+    rsi = ta.momentum.RSIIndicator(close=data['Close'], window=window)
+    data['rsi'] = rsi.rsi()
+
+    def rsi_signal(row):
+        if row['rsi'] < low_threshold:
+            return 0   # Buy signal
+        elif row['rsi'] > high_threshold:
+            return 1  # Sell signal
+        else:
+            return 2   # Hold
+
+    data['label'] = data.apply(rsi_signal, axis=1)
+
+    return data[['label']]
+
 def label_trading_signal(index, ohlcv, trading_window, 
                             target_profit, max_drawdown):
 
@@ -19,9 +40,9 @@ def label_trading_signal(index, ohlcv, trading_window,
     entry_price = ohlcv['Close'].loc[index]
 
     # maximum price in the trading window
-    max_price = ohlcv['High'].loc[start_index:end_index].max()
+    max_price = ohlcv['Close'].loc[start_index:end_index].max()
     # minimum price in the trading window
-    min_price = ohlcv['Low'].loc[start_index:end_index].min()
+    min_price = ohlcv['Close'].loc[start_index:end_index].min()
 
     # maximum return on long position and short position
     long_return = (max_price - entry_price) / entry_price

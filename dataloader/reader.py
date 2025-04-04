@@ -27,25 +27,18 @@ def fetch_ohlcv_online(ticker="BTC-USD",
 
     return unpacked
 
-def read_local_data(data_path, features=['Close', 'Open', 'High', 'Low', 'Volume']):
+def read_local_data(data_path, columns):
     try:
         data = pd.read_csv(data_path)
-        # data['Close time'] = pd.to_datetime(data['Close time'])
-        # data.set_index('Close time', inplace=True)
-
     except Exception as e:
         raise RuntimeError(f"Failed to read data from {data_path}: {e}")
-    
-    return data[features]
+    return data[columns]
 
 def read_labels(label_path):
-    try:
-        labels = pd.read_csv(label_path)
-        labels.set_index('index', inplace=True)
-        
-    except Exception as e:
-        raise RuntimeError(f"Failed to read labels from {label_path}: {e}")
-    
+    labels = read_local_data(label_path, ['index', 'label'])
+    labels.set_index('index', inplace=True)
+    labels.dropna(inplace=True)
+    labels = labels.astype(int)
     return labels
 
 

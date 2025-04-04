@@ -23,18 +23,29 @@ def visualize_signals(data, y_true, y_pred, start_index=0):
     plt.legend()
     plt.show()
 
-def plot_confusion_matrix(y_true, y_pred, classes):
+def report_confusion_matrix(config, logger, y_true, y_pred, display=True):
     # Compute matrix
-    cm = confusion_matrix(y_true, y_pred)
+    labels=[config.class_map[c] for c in config.classes]
+    cm = confusion_matrix(y_true, y_pred, labels=config.classes)
 
-    # Display
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
-    fig, ax = plt.subplots(figsize=(6, 4))
+    # log confusion matrix
+    cm_df = pd.DataFrame(cm, index=[f'Actual {label}' for label in labels],
+                        columns=[f'Predicted {label}' for label in labels])
+    logger.info("\nConfusion Matrix:\n%s", cm_df.to_string())
+    # log confusion matrix in percentage
+    cm_percentage = cm_df.div(cm_df.sum(axis=1), axis=0) * 100
+    cm_formatted = cm_percentage.map(lambda x: f"{x:.1f}%")
+    logger.info("\nConfusion Matrix (Percentage):\n%s", cm_formatted.to_string())
 
-    disp.plot(ax=ax, cmap='Blues', colorbar=True)
-    plt.grid(False)  # Turns off background grid
-    plt.tight_layout()
-    plt.show()
+    # display
+    if display:
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+        fig, ax = plt.subplots(figsize=(6, 4))
+
+        disp.plot(ax=ax, cmap='Blues', colorbar=True)
+        plt.grid(False)  # Turns off background grid
+        plt.tight_layout()
+        plt.show()
 
 def report_performance(config, logger, y_true, y_pred):
     # Compute metrics per class
@@ -55,14 +66,14 @@ def report_result(config, logger, result_df):
     y_pred = result_df['pred']
 
     start_index = result_df.index[0] - config.lookback
-    price = read_local_data(config.feature_path, features=['Close'])[start_index:]
+    price = read_local_data(config.feature_path, columns=['Close'])[start_index:]
 
     # compute precision, recall
+    sns.set()
     report_performance(config, logger, y_true, y_pred)
     
-    # visualize signals on the price chart
-    sns.set() # set seaborn style
-    visualize_signals(price, y_true, y_pred, start_index)
-
     # confusion matrix
-    plot_confusion_matrix(y_true, y_pred, config.classes)
+    report_confusion_matrix(config, logger, y_true, y_pred, display=False)
+
+    # visualize signals on the price chart
+    # visualize_signals(price, y_true, y_pred, start_index)

@@ -3,38 +3,39 @@ import torch.nn as nn
 import torch.functional as F
 import numpy as np
 
-from torch.nn import Module, LSTM, Linear
 from torch.utils.data import DataLoader
 from dataloader.dataset import LabelDataset
 from model.encoder import FeatureEncoding
 
-class LSTMClassifier(nn.Module):
+class LinearClassifier(nn.Module):
 
     def __init__(self, config):
-        super(LSTMClassifier, self).__init__()
+        super(LinearClassifier, self).__init__()
         self.config = config
         self.encoding = FeatureEncoding(config.features, config.feature_path)
 
-        self.lstm = nn.LSTM(input_size=config.input_size, hidden_size=config.hidden_size,
-                            num_layers=config.lstm_layers, batch_first=True, dropout=config.dropout_rate)
-        self.dropout1 = nn.Dropout(p=config.dropout_rate)
-        self.fc1 = nn.Linear(config.hidden_size, config.hidden_size // 2)
-        self.relu = nn.ReLU()
-        self.dropout2 = nn.Dropout(p=config.dropout_rate)
-        self.fc2 = nn.Linear(config.hidden_size // 2, config.output_size)
-        self.softmax = nn.LogSoftmax(dim=-1)  # LogSoftmax for multi-class classification
+        self.flatten = nn.Flatten()
+        self.linear_relu_stack = nn.Sequential(
+            nn.Linear(config.input_size, config.hidden_size),
+            nn.ReLU(),
+            nn.Dropout(p=config.dropout_rate),
+            nn.Linear(config.hidden_size, config.hidden_size * 2),
+            nn.ReLU(),
+            nn.Dropout(p=config.dropout_rate),
+            nn.Linear(config.hidden_size * 2, config.hidden_size),
+            nn.ReLU(),
+            nn.Dropout(p=config.dropout_rate),
+            nn.Linear(config.hidden_size, config.output_size),
+            nn.LogSoftmax(dim=-1),
+        )
 
-    def forward(self, batch, hidden=None):
+    def forward(self, x):
         # batch: (batch_size, seq_len) -> encodes: (batch_size, seq_len, input_size)
-        encodes = self.encoding(batch)
-
-        _, (ht, ct) = self.lstm(encodes, hidden)
-        out = self.dropout1(ht[-1])
-        out = self.relu(self.fc1(out))
-        out = self.dropout2(out)
-        out = self.softmax(self.fc2(out))
-
-        return out, (ht, ct)  # Return the output and the hidden state
+        x = self.encoding(x)
+        
+        x = self.flatten(x)
+        logits = self.linear_relu_stack(x)
+        return logits
 
 def train(config, logger, train_and_valid_data):
 
@@ -49,7 +50,7 @@ def train(config, logger, train_and_valid_data):
     # Set device
     device = torch.device("cuda:0" if config.use_cuda and torch.cuda.is_available() else "cpu") # Use CPU or GPU
     # Define model
-    model = LSTMClassifier(config).to(device)
+    model = LinearClassifier(config).to(device)
     
     # Load model parameters if performing incremental training
     if config.add_train:
@@ -71,7 +72,7 @@ def train(config, logger, train_and_valid_data):
 
             _train_X, _train_Y = _data[0].to(device), _data[1].to(device)
             optimizer.zero_grad()               # Clear gradients before training
-            pred_Y, _ = model(_train_X, None)    # Forward pass
+            pred_Y = model(_train_X)    # Forward pass
 
             loss = criterion(pred_Y, _train_Y)  # Compute loss
             loss.backward()                     # Backpropagation
@@ -84,7 +85,7 @@ def train(config, logger, train_and_valid_data):
         valid_loss_array = []
         for _valid_X, _valid_Y in valid_loader:
             _valid_X, _valid_Y = _valid_X.to(device), _valid_Y.to(device)
-            pred_Y, _ = model(_valid_X, None)
+            pred_Y = model(_valid_X)
 
             loss = criterion(pred_Y, _valid_Y)  # Only forward pass in validation
             valid_loss_array.append(loss.item())
@@ -113,7 +114,7 @@ def predict(config, test_data):
 
     # Load model
     device = torch.device("cuda:0" if config.use_cuda and torch.cuda.is_available() else "cpu")
-    model = LSTMClassifier(config).to(device)
+    model = LinearClassifier(config).to(device)
     model.load_state_dict(torch.load(config.model_save_path + config.model_name))   # Load model parameters
 
     # Prepare a tensor to store the predictions
@@ -121,10 +122,9 @@ def predict(config, test_data):
 
     # Prediction process
     model.eval()
-    hidden_predict = None
     for _data in test_loader:
         data_X = _data[0].to(device)
-        pred_X, hidden_predict = model(data_X, hidden_predict)
+        pred_X = model(data_X)
         # Experimentally, using hidden state from the previous time step improves prediction regardless of mode
         cur_pred = torch.argmax(pred_X, dim=-1)
         result = torch.cat((result, cur_pred), dim=0)

@@ -4,28 +4,40 @@ import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 
+from utils import labeller as lbl
 from dataloader.reader import read_local_data
 from utils.labeller import label_trading_signal
-from utils.featurizer import add_technical_features
+from utils.featurizer import add_technical_features, add_derived_features
 
 class Config:
+    # Experiment parameters
+    do_experiment = False
+    # exp_type = 'RSI'  # 'RSI', 'MACD'
+
     # Data path
-    # data_path = "data/raw/BTCUSD_1h_Binance.csv"
-    data_path = "data/raw/TSLA_1h_Yfinance.csv"
+    data_path = "data/raw/BTCUSD_1h_Binance.csv"
+    # data_path = "data/raw/TSLA_1h_Yfinance.csv"
 
     # Feature parameters
-    base_features = ['Close', 'Open', 'High', 'Low', 'Volume']
+    raw_features = ['Close time', 'Close', 'Open', 'High', 'Low', 'Volume']
+    # raw_features = ['Close time', 'Close']
     tech_features = {
-        'LOG_RET': [1],
-        'SMA': [5, 10, 20, 50],
-        'RSI': [14],
+        # 'LOG_RET': [1],
+        'SMA': [3, 5, 10, 20, 50, 100],
+        # 'MACD': [(12, 26)],
+        'AVG_GAIN': [14],
+        'AVG_LOSS': [14],
+        'LOG_RS': [14],
+        # 'RSI': [14],
     }
-    features = base_features + [f'{k}_{i}' for k, v in tech_features.items() for i in v]
+    derived_features = []
+    # derived_features = ['RAN_HL', 'RAN_OC', 'LOG_RET', 'VOL_RET']
+    features = raw_features + [f'{k}_{i}' for k, v in tech_features.items() for i in v]
 
     # Labeling parameters
-    trading_window = 24
-    target_profit = 0.05
-    max_drawdown = 0.02
+    trading_window = 8
+    target_profit = 0.02
+    max_drawdown = 1
 
     # Classes setup
     classes = [0, 1, 2]
@@ -56,7 +68,7 @@ def draw(data, labels):
     plt.show()
 
     # plot price chart
-    signal_symbols = ['▲', '▼', '•']
+    signal_symbols = ['▲', '▼', ''] #•
     signal_colors = ['green', 'red', 'gray']
 
     # Candlestick chart
@@ -90,23 +102,38 @@ def draw(data, labels):
 
 def main(config):
     # read data
-    data = read_local_data(config.data_path, features=config.base_features)
-
-    data.reset_index(inplace=True)
+    data = read_local_data(config.data_path, columns=config.raw_features)
+    
+    # append derived features
+    data = add_derived_features(data, *config.derived_features)
+    # append technical features
+    data = add_technical_features(data, **config.tech_features)
+    # drop NaN values and reset index (drop old index)
+    data.dropna(inplace=True)
+    data.reset_index(drop=True, inplace=True)
     data.index.name = 'index'
 
-    # append technical indicators
-    data = add_technical_features(data, **config.tech_features)
+    if config.do_experiment:
+        if config.exp_type == 'RSI':
+            # simple rsi signal labels for test
+            labels = lbl.label_rsi_signal(data['Close'])
+            data['label'] = labels['label']
+        elif config.exp_type == 'MACD':
+            # simple macd signal labels for test
+            labels = lbl.label_macd_signal(data['Close'])
+            data['label'] = labels['label']
+        
+    else:
+        rows = []
+        for i in data.index.tolist():
+            label = label_trading_signal(i, data, config.trading_window, 
+                                        config.target_profit, config.max_drawdown)
+            rows.append((i, label))
 
-    # label data
-    rows = []
-    for i in data.index.tolist():
-        label = label_trading_signal(i, data, config.trading_window, 
-                                    config.target_profit, config.max_drawdown)
-        rows.append((i, label))
+        labels = pd.DataFrame(rows, columns=['index', 'label'])
+        labels.set_index('index', inplace=True)
 
-    labels = pd.DataFrame(rows, columns=['index', 'label'])
-    labels.set_index('index', inplace=True)
+    
 
     # save labels
     labels.dropna(inplace=True)
@@ -119,15 +146,8 @@ def main(config):
 
     # draw signals
     draw(data, labels)
-
-    
-
-    
-
-
     
 if __name__ == "__main__":
-    sns.set()
     con = Config()
     main(con)
 
